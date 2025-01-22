@@ -2,3 +2,36 @@
 # Please follow the best practices: 
 # https://snakemake.readthedocs.io/en/stable/snakefiles/best_practices.html,
 # in particular regarding the standardized folder structure mentioned there. 
+import pandas as pd
+
+units = (
+    pd.read_csv(
+        "config/units.tsv",
+        sep="\t",
+        dtype={"sample": str, "unit": str},
+        comment="#",
+    )
+    .set_index(["sample", "unit"], drop=False)
+    .sort_index()
+)
+
+rule all:
+    input: 
+        expand("results/merged/{sample}.{read}.fastq.gz",
+            sample=units["sample"].unique(),
+            read=["fq1","fq2"],
+            ),
+
+rule merge_unit_fastq_to_sample:
+    input: 
+        fastqs=lookup(query="sample == '{sample}'", within=units, cols="{read}"),
+    output:
+        merged="results/merged/{sample}.{read}.fastq.gz",
+    log: 
+        "logs/merged/{sample}.{read}.log",
+    shell:
+        "(zcat {input.fastqs} | gzip --stdout  > {output.merged}) 2>{log}"      
+
+
+
+
